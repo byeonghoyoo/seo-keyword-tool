@@ -101,3 +101,88 @@ export interface KeywordOpportunity {
   opportunity: number;
   currentRank?: number;
 }
+
+// Analysis History Types
+export interface AnalysisHistory {
+  id: string;
+  targetUrl: string;
+  domain: string;
+  analyzedAt: Date;
+  status: 'completed' | 'failed' | 'partial';
+  keywordsFound: number;
+  averageRanking: number;
+  analysisOptions: AnalysisOptions;
+  duration: number; // in minutes
+  tags: string[];
+}
+
+// Competitor Analysis Types
+export interface CompetitorProfile {
+  id: string;
+  domain: string;
+  name: string;
+  description: string;
+  website: string;
+  favicon: string;
+  addedAt: Date;
+  lastAnalyzed?: Date;
+  metrics: {
+    totalKeywords: number;
+    averageRanking: number;
+    organicTraffic: number;
+    commonKeywords: number;
+    uniqueKeywords: number;
+  };
+  trends: {
+    rankingTrend: 'up' | 'down' | 'stable';
+    keywordGrowth: number;
+    trafficGrowth: number;
+  };
+}
+
+export interface CompetitorComparison {
+  period: string;
+  metrics: {
+    keywordOverlap: number;
+    rankingGaps: number;
+    opportunities: number;
+    threats: number;
+  };
+  keywordGaps: KeywordResult[];
+  strongerKeywords: KeywordResult[];
+  weakerKeywords: KeywordResult[];
+}
+
+// Report Types
+export interface ReportTemplate {
+  id: string;
+  name: string;
+  description: string;
+  sections: ReportSection[];
+  createdAt: Date;
+  lastUsed?: Date;
+}
+
+export interface ReportSection {
+  id: string;
+  title: string;
+  type: 'summary' | 'keywords' | 'competitors' | 'trends' | 'opportunities' | 'chart';
+  config: any;
+  order: number;
+}
+
+export interface GeneratedReport {
+  id: string;
+  title: string;
+  template: ReportTemplate;
+  analysisIds: string[];
+  generatedAt: Date;
+  format: 'pdf' | 'excel' | 'html';
+  status: 'generating' | 'completed' | 'failed';
+  downloadUrl?: string;
+  insights: {
+    keyFindings: string[];
+    recommendations: string[];
+    alerts: string[];
+  };
+}

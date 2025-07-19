@@ -58,7 +58,7 @@ export default function Header() {
             <NavLink href="/" icon={BarChart3}>
               대시보드
             </NavLink>
-            <NavLink href="/history" icon={Clock}>
+            <NavLink href="/analysis" icon={Clock}>
               분석 히스토리
             </NavLink>
             <NavLink href="/competitors" icon={Users}>
