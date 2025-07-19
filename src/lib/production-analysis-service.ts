@@ -1,5 +1,5 @@
 import { supabaseAdmin } from './supabase';
-import { enhancedWebScraper, type EnhancedScrapedContent } from './enhanced-scraper';
+import { vercelCompatibleScraper, type VercelScrapedContent } from './vercel-compatible-scraper';
 import { enhancedGoogleAI, type AIKeywordAnalysis, type EnhancedKeyword } from './enhanced-google-ai';
 import type { AnalysisOptions, KeywordResult, LogEntry } from '@/types';
 
@@ -73,9 +73,9 @@ export class ProductionAnalysisService {
       await this.updateJobStatus(jobId, 'running', undefined, 0, 'analyzing');
       await this.addLog(jobId, 'info', `Starting production analysis for ${targetUrl}`, 'analyzing');
 
-      // Phase 1: Enhanced Web Scraping (20%)
+      // Phase 1: Vercel-Compatible Web Scraping (20%)
       await this.updateJobProgress(jobId, 10, 'analyzing', 'Analyzing website structure...');
-      const scrapedContent = await enhancedWebScraper.scrapeUrl(targetUrl);
+      const scrapedContent = await vercelCompatibleScraper.scrapeUrl(targetUrl);
       
       await this.addLog(jobId, 'success', 
         `Website analysis completed. Found ${scrapedContent.keywords.length} initial keywords`, 
@@ -146,8 +146,7 @@ export class ProductionAnalysisService {
         'completing'
       );
 
-      // Clean up browser resources
-      await enhancedWebScraper.close();
+      // No cleanup needed for axios-based scraper
 
     } catch (error) {
       await this.updateJobStatus(jobId, 'failed', error instanceof Error ? error.message : 'Unknown error');
@@ -155,8 +154,7 @@ export class ProductionAnalysisService {
         `Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
       
-      // Ensure cleanup
-      await enhancedWebScraper.close();
+      // No cleanup needed for axios-based scraper
     }
   }
 
@@ -206,7 +204,7 @@ export class ProductionAnalysisService {
   private async storeAnalysisMetadata(
     jobId: string, 
     aiAnalysis: AIKeywordAnalysis, 
-    scrapedContent: EnhancedScrapedContent
+    scrapedContent: VercelScrapedContent
   ): Promise<void> {
     try {
       // Store analysis metadata in the analysis_jobs table
@@ -216,8 +214,6 @@ export class ProductionAnalysisService {
           marketInsights: aiAnalysis.marketInsights,
           suggestions: aiAnalysis.suggestions,
           seoScore: scrapedContent.seoScore,
-          businessInfo: scrapedContent.businessInfo,
-          contactInfo: scrapedContent.contactInfo,
           performance: scrapedContent.performance,
         }
       });

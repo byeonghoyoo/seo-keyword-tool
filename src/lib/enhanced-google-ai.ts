@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import type { EnhancedScrapedContent } from './enhanced-scraper';
+import type { VercelScrapedContent } from './vercel-compatible-scraper';
 
 export interface EnhancedKeyword {
   keyword: string;
@@ -47,7 +47,7 @@ class EnhancedGoogleAIService {
     }
   }
 
-  async analyzeContent(content: EnhancedScrapedContent): Promise<AIKeywordAnalysis> {
+  async analyzeContent(content: VercelScrapedContent): Promise<AIKeywordAnalysis> {
     if (!this.genAI) {
       throw new Error('Google AI API key not configured');
     }
@@ -87,7 +87,7 @@ class EnhancedGoogleAIService {
     }
   }
 
-  private createDetailedPrompt(content: EnhancedScrapedContent): string {
+  private createDetailedPrompt(content: VercelScrapedContent): string {
     return `
       Analyze this Korean website content and provide comprehensive SEO keyword recommendations:
 
@@ -102,8 +102,7 @@ class EnhancedGoogleAIService {
       - H1 Headings: ${content.headings.h1.join(', ')}
       - H2 Headings: ${content.headings.h2.slice(0, 5).join(', ')}
       - Content Sample: ${content.content.slice(0, 1500)}
-      - Contact Info: ${JSON.stringify(content.contactInfo)}
-      - Business Info: ${JSON.stringify(content.businessInfo)}
+      - Meta Tags: ${JSON.stringify(content.metaTags)}
 
       **SEO Metrics:**
       - Current SEO Score: ${content.seoScore.overall}/100
@@ -177,7 +176,7 @@ class EnhancedGoogleAIService {
     `;
   }
 
-  private validateAndEnhanceAnalysis(analysis: AIKeywordAnalysis, content: EnhancedScrapedContent): AIKeywordAnalysis {
+  private validateAndEnhanceAnalysis(analysis: AIKeywordAnalysis, content: VercelScrapedContent): AIKeywordAnalysis {
     const enhanced: AIKeywordAnalysis = {
       keywords: [],
       suggestions: {
@@ -250,7 +249,7 @@ class EnhancedGoogleAIService {
     };
   }
 
-  private generateAdditionalKeywords(content: EnhancedScrapedContent, currentCount: number): EnhancedKeyword[] {
+  private generateAdditionalKeywords(content: VercelScrapedContent, currentCount: number): EnhancedKeyword[] {
     const needed = Math.min(20, 45 - currentCount);
     const additional: EnhancedKeyword[] = [];
 
@@ -283,7 +282,7 @@ class EnhancedGoogleAIService {
     return additional;
   }
 
-  private createEnhancedFallbackAnalysis(content: EnhancedScrapedContent): AIKeywordAnalysis {
+  private createEnhancedFallbackAnalysis(content: VercelScrapedContent): AIKeywordAnalysis {
     const baseKeywords = this.generateAdditionalKeywords(content, 0);
     
     return {
@@ -328,7 +327,7 @@ class EnhancedGoogleAIService {
     };
   }
 
-  private inferBusinessType(content: EnhancedScrapedContent): string {
+  private inferBusinessType(content: VercelScrapedContent): string {
     const domain = content.domain.toLowerCase();
     const contentText = (content.title + ' ' + content.description).toLowerCase();
     
@@ -386,7 +385,7 @@ class EnhancedGoogleAIService {
     return 'informational';
   }
 
-  private inferIndustry(content: EnhancedScrapedContent): string {
+  private inferIndustry(content: VercelScrapedContent): string {
     const businessType = this.inferBusinessType(content);
     return businessType.split('/')[0];
   }
