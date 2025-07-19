@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { enhancedGoogleAI } from '@/lib/enhanced-google-ai';
+import type { KeywordResultInsert } from '@/types';
 
 export async function POST(request: Request) {
   try {
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
     await updateJobProgress(job.id, 60, 'crawling', 'Processing keyword metrics...');
     
     // Process keywords into database format
-    const keywordResults = aiAnalysis.keywords.map((keyword, index) => ({
+    const keywordResults: KeywordResultInsert[] = aiAnalysis.keywords.map((keyword, index) => ({
       job_id: job.id,
       keyword: keyword.keyword,
       position: estimatePosition(keyword),
@@ -110,7 +111,7 @@ export async function POST(request: Request) {
       search_volume: keyword.estimatedSearchVolume,
       competition: keyword.competitionLevel,
       estimated_cpc: keyword.estimatedCPC,
-      previous_position: null,
+      previous_position: undefined,
       discovered_at: new Date().toISOString(),
     }));
 

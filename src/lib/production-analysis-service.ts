@@ -1,7 +1,7 @@
 import { supabaseAdmin } from './supabase';
 import { vercelCompatibleScraper, type VercelScrapedContent } from './vercel-compatible-scraper';
 import { enhancedGoogleAI, type AIKeywordAnalysis, type EnhancedKeyword } from './enhanced-google-ai';
-import type { AnalysisOptions, KeywordResult, LogEntry } from '@/types';
+import type { AnalysisOptions, KeywordResult, KeywordResultInsert, LogEntry } from '@/types';
 
 export interface ProductionAnalysisJob {
   id: string;
@@ -163,8 +163,8 @@ export class ProductionAnalysisService {
     keywords: EnhancedKeyword[],
     domain: string,
     progressCallback: (progress: number, currentKeyword: string) => void
-  ): Promise<any[]> {
-    const results: any[] = [];
+  ): Promise<KeywordResultInsert[]> {
+    const results: KeywordResultInsert[] = [];
     
     for (let i = 0; i < keywords.length; i++) {
       const keyword = keywords[i];
@@ -172,9 +172,8 @@ export class ProductionAnalysisService {
       
       progressCallback(progress, keyword.keyword);
       
-      // Create enhanced keyword result
+      // Create enhanced keyword result (let Supabase generate UUID)
       const keywordResult = {
-        id: `${jobId}-${keyword.keyword.replace(/\s+/g, '-')}-${i}`,
         job_id: jobId,
         keyword: keyword.keyword,
         position: this.estimatePosition(keyword),
@@ -186,7 +185,7 @@ export class ProductionAnalysisService {
         search_volume: keyword.estimatedSearchVolume,
         competition: keyword.competitionLevel,
         estimated_cpc: keyword.estimatedCPC,
-        previous_position: null,
+        previous_position: undefined,
         discovered_at: new Date().toISOString(),
       };
       

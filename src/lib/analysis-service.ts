@@ -2,7 +2,7 @@ import { supabaseAdmin } from './supabase';
 import { webScraper, type ScrapedContent } from './scraper';
 import { googleAI, type KeywordAnalysis } from './google-ai';
 import { searchRanking, type RankingResult } from './search-ranking';
-import type { AnalysisOptions, KeywordResult, LogEntry } from '@/types';
+import type { AnalysisOptions, KeywordResult, KeywordResultInsert, LogEntry } from '@/types';
 
 export interface AnalysisJob {
   id: string;
@@ -91,7 +91,7 @@ export class AnalysisService {
       await this.updateJobProgress(jobId, 50, 'crawling', 'Checking search rankings...');
       
       const rankingResults: RankingResult[] = [];
-      const keywordResults: KeywordResult[] = [];
+      const keywordResults: KeywordResultInsert[] = [];
       
       // Process keywords in batches to avoid overwhelming APIs
       const batchSize = 5;
@@ -110,11 +110,11 @@ export class AnalysisService {
         
         rankingResults.push(...batchResults);
         
-        // Convert ranking results to keyword results
+        // Convert ranking results to keyword results for database insertion
         for (const rankingResult of batchResults) {
           for (const result of rankingResult.results) {
             keywordResults.push({
-              id: `${jobId}-${rankingResult.keyword}-${result.position}`,
+              job_id: jobId,
               keyword: rankingResult.keyword,
               position: result.position,
               page: result.page,
@@ -122,11 +122,11 @@ export class AnalysisService {
               url: result.url,
               title: result.title,
               snippet: result.snippet,
-              searchVolume: searchRanking.estimateSearchVolume(rankingResult.keyword),
+              search_volume: searchRanking.estimateSearchVolume(rankingResult.keyword),
               competition: this.determineCompetition(rankingResult.keyword),
-              estimatedCPC: this.estimateCPC(rankingResult.keyword),
-              previousPosition: undefined,
-              discovered: new Date(),
+              estimated_cpc: this.estimateCPC(rankingResult.keyword),
+              previous_position: undefined,
+              discovered_at: new Date().toISOString(),
             });
           }
         }
