@@ -496,6 +496,33 @@ export class EnhancedWebScraper {
       return url;
     }
   }
+
+  async testConnection(): Promise<{ success: boolean; message: string; details?: any }> {
+    try {
+      // Test with a simple HTTP request first
+      const response = await axios.get('https://httpbin.org/get', { timeout: 5000 });
+      
+      if (response.status === 200) {
+        return {
+          success: true,
+          message: 'Web scraping connection successful',
+          details: { status: response.status, userAgent: response.data?.headers?.['User-Agent'] }
+        };
+      } else {
+        return {
+          success: false,
+          message: 'Web scraping test failed',
+          details: { status: response.status }
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Web scraping connection failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
 }
 
 export const enhancedWebScraper = new EnhancedWebScraper();

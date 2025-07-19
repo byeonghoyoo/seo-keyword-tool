@@ -454,6 +454,34 @@ class EnhancedGoogleAIService {
     const filteredRelated = related.filter(r => r !== keyword);
     return filteredRelated.slice(0, 5);
   }
+
+  async testConnection(): Promise<{ success: boolean; message: string; details?: any }> {
+    try {
+      if (!this.genAI) {
+        return {
+          success: false,
+          message: 'Google AI not initialized - missing API key',
+        };
+      }
+
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-pro' });
+      const result = await model.generateContent('Test connection - respond with "OK"');
+      const response = await result.response;
+      const text = response.text();
+
+      return {
+        success: true,
+        message: 'Google AI connection successful',
+        details: { response: text.substring(0, 100) }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Google AI connection failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      };
+    }
+  }
 }
 
 export const enhancedGoogleAI = new EnhancedGoogleAIService();
