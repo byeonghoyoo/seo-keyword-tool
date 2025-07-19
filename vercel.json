@@ -8,7 +8,7 @@
   },
   "functions": {
     "src/app/**/*.{js,ts,jsx,tsx}": {
-      "runtime": "@nodejs18.x"
+      "runtime": "nodejs18.x"
     }
   },
   "regions": ["icn1"],
