@@ -42,8 +42,8 @@ export function useAnalysis() {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-      // Start analysis (using test mode for development)
-      const response = await fetch('/api/test-analysis/start', {
+      // Start enhanced analysis
+      const response = await fetch('/api/enhanced-analysis/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,8 +79,8 @@ export function useAnalysis() {
       eventSourceRef.current.close();
     }
 
-    // Create new EventSource for progress tracking (using test mode)
-    const eventSource = new EventSource(`/api/test-analysis/progress/${jobId}`);
+    // Create new EventSource for enhanced progress tracking
+    const eventSource = new EventSource(`/api/enhanced-analysis/progress/${jobId}`);
     eventSourceRef.current = eventSource;
 
     eventSource.onopen = () => {
@@ -150,7 +150,7 @@ export function useAnalysis() {
 
   const fetchResults = useCallback(async (jobId: string) => {
     try {
-      const response = await fetch(`/api/test-analysis/results/${jobId}`);
+      const response = await fetch(`/api/enhanced-analysis/results/${jobId}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch results');
