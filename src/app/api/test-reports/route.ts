@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { reportGenerator } from '@/lib/report-generator';
+import { reportGenerator } from '@/lib/simple-report-generator';
 import type { EnhancedAnalysisJob, EnhancedKeywordResult } from '@/lib/enhanced-analysis-service';
+import type { KeywordResult } from '@/types';
 
 export async function GET() {
   try {
@@ -12,15 +13,20 @@ export async function GET() {
       targetUrl: 'https://m.rubyps.co.kr',
       domain: 'm.rubyps.co.kr',
       status: 'completed',
-      createdAt: new Date().toISOString(),
-      completedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      completedAt: new Date(),
+      overallProgress: 100,
+      currentPhase: 'completed',
+      options: { maxPages: 5, includeAds: true, deepAnalysis: true, searchEngine: 'naver' as const },
       phases: {
-        phase1_scraping: { status: 'completed', progress: 100, startedAt: new Date().toISOString(), completedAt: new Date().toISOString() },
-        phase2_ai_analysis: { status: 'completed', progress: 100, startedAt: new Date().toISOString(), completedAt: new Date().toISOString() },
-        phase3_search_volume: { status: 'completed', progress: 100, startedAt: new Date().toISOString(), completedAt: new Date().toISOString() },
-        phase4_ranking_check: { status: 'completed', progress: 100, startedAt: new Date().toISOString(), completedAt: new Date().toISOString() },
-        phase5_data_save: { status: 'completed', progress: 100, startedAt: new Date().toISOString(), completedAt: new Date().toISOString() },
+        phase1_scraping: { name: '페이지 스크래핑', description: '웹페이지 분석', progress: 100, completed: true, startTime: new Date() },
+        phase2_ai_analysis: { name: 'AI 키워드 분석', description: 'AI 키워드 추출', progress: 100, completed: true, startTime: new Date() },
+        phase3_search_volume: { name: '검색량 조사', description: '키워드 검색량 분석', progress: 100, completed: true, startTime: new Date() },
+        phase4_ranking_check: { name: '순위 확인', description: '키워드 순위 체크', progress: 100, completed: true, startTime: new Date() },
+        phase5_data_save: { name: '데이터 저장', description: '결과 데이터 저장', progress: 100, completed: true, startTime: new Date() },
       },
+      logs: [],
       results: {
         scrapedContent: {
           url: 'https://m.rubyps.co.kr',
@@ -46,7 +52,7 @@ export async function GET() {
           contentAnalysis: { topic: '성형외과', industry: 'Medical', tone: 'Professional', targetAudience: '성형수술 고객', contentQuality: 75, seoOptimization: 70 },
           marketInsights: { totalMarketSize: '중간 규모', competitionLevel: 'medium' as const, marketTrends: [], opportunities: [] }
         },
-        competitorAnalysis: null,
+        competitorAnalysis: undefined,
         finalStats: {
           totalKeywords: 20,
           primaryKeywords: 3,
@@ -54,11 +60,11 @@ export async function GET() {
           longTailKeywords: 10,
           opportunityKeywords: 5,
           avgSearchVolume: 2500,
-          avgCPC: 850,
-          totalAnalysisTime: 180
-        }
-      },
-      options: { maxPages: 5, includeAds: true, deepAnalysis: true, searchEngine: 'naver' as const }
+          avgCompetition: 0.6,
+          avgCPC: 850
+        },
+        keywordResults: []
+      }
     };
 
     const mockKeywords: EnhancedKeywordResult[] = [
@@ -75,13 +81,13 @@ export async function GET() {
         seasonality: 'stable',
         relatedKeywords: ['성형외과', '루비', '성형수술'],
         currentRanking: 1,
-        createdAt: new Date().toISOString()
+        discovered: new Date()
       },
       {
         id: '2',
         jobId: 'test-report-job',
         keyword: '눈성형',
-        relevance: 90,
+        relevance: 0.90,
         category: 'primary',
         searchIntent: 'transactional',
         estimatedSearchVolume: 8000,
@@ -90,13 +96,13 @@ export async function GET() {
         seasonality: 'stable',
         relatedKeywords: ['쌍꺼풀', '눈매교정', '상안검'],
         currentRanking: 3,
-        createdAt: new Date().toISOString()
+        discovered: new Date()
       },
       {
         id: '3',
         jobId: 'test-report-job',
         keyword: '코성형',
-        relevance: 88,
+        relevance: 0.88,
         category: 'secondary',
         searchIntent: 'transactional',
         estimatedSearchVolume: 6500,
@@ -105,27 +111,59 @@ export async function GET() {
         seasonality: 'stable',
         relatedKeywords: ['콧볼축소', '매부리코', '들창코'],
         currentRanking: 5,
-        createdAt: new Date().toISOString()
+        discovered: new Date()
       }
     ];
 
+    // Transform data for simple report generator
+    const reportData = {
+      jobId: mockJob.id,
+      targetUrl: mockJob.targetUrl,
+      domain: mockJob.domain,
+      keywords: mockKeywords.map(k => ({
+        id: k.id,
+        keyword: k.keyword,
+        position: k.currentRanking || 999,
+        page: 1,
+        type: (k.searchIntent === 'transactional' ? 'ad' : 'organic') as 'organic' | 'ad' | 'shopping' | 'local',
+        url: mockJob.targetUrl,
+        title: k.keyword,
+        searchVolume: k.estimatedSearchVolume,
+        competition: k.competitionLevel,
+        estimatedCPC: k.estimatedCPC,
+        discovered: k.discovered,
+      })),
+      analysis: {
+        totalKeywords: mockJob.results.finalStats.totalKeywords,
+        avgRanking: mockKeywords.reduce((sum, k) => sum + (k.currentRanking || 999), 0) / mockKeywords.length || 0,
+        top10Keywords: mockKeywords.filter(k => k.currentRanking && k.currentRanking <= 10).length,
+        adOpportunities: mockKeywords.filter(k => k.searchIntent === 'transactional').length,
+        lowCompetitionKeywords: mockJob.results.finalStats.opportunityKeywords,
+      },
+      generatedAt: new Date(),
+    };
+
     // Test PDF report generation
-    const reports = await reportGenerator.generateComprehensiveReport(
-      mockJob,
-      mockKeywords,
-      { format: ['pdf', 'excel'], includeCharts: true, language: 'ko' }
-    );
+    const report = await reportGenerator.generateReport(reportData, {
+      format: 'pdf',
+      sections: {
+        summary: true,
+        keywords: true,
+        competitors: false,
+        recommendations: true,
+      },
+      title: `테스트 보고서 - ${mockJob.domain}`,
+    });
 
     return NextResponse.json({
       success: true,
       message: 'Report generation test completed',
-      reportsGenerated: reports.length,
-      reports: reports.map(report => ({
-        type: report.type,
-        format: report.format,
-        size: report.buffer.length,
-        filename: report.filename
-      }))
+      report: {
+        downloadUrl: report.downloadUrl,
+        fileName: report.fileName,
+        fileSize: report.fileSize,
+        format: 'pdf',
+      }
     });
 
   } catch (error) {

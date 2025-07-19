@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useDashboard } from '@/hooks/useDashboard';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -357,6 +358,65 @@ const mockCompetitorData: CompetitorData = {
 
 export default function Dashboard() {
   const [timeRange, setTimeRange] = useState('7d');
+  const { stats, history, isLoading, error, refreshData } = useDashboard();
+
+  // Transform real data to match component expectations
+  const realMetrics: AnalyticsMetrics = stats ? {
+    totalKeywords: stats.total_keywords || 0,
+    keywordChange: 12.5, // This would need to be calculated from historical data
+    avgRanking: stats.avg_ranking || 0,
+    rankingChange: -2.1, // This would need to be calculated from historical data
+    adOpportunities: stats.ad_opportunities || 0,
+    adChange: 15.2, // This would need to be calculated from historical data
+    competitionScore: stats.low_competition_keywords || 0,
+    competitionChange: 3.8, // This would need to be calculated from historical data
+  } : mockMetrics;
+
+  // Generate trend data from history (simplified)
+  const trendData = history.length > 0 ? 
+    history.slice(-7).map((item, index) => ({
+      date: new Date(item.completed_at).toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }),
+      top10: Math.round((item.actual_keywords_count * 0.1) || 10 + index * 2),
+      top20: Math.round((item.actual_keywords_count * 0.2) || 20 + index),
+      others: Math.round((item.actual_keywords_count * 0.7) || 70 - index),
+    })) : mockTrendData;
+
+  // Use mock data for opportunities for now (would need API endpoint)
+  const opportunities = mockOpportunities;
+
+  // Use mock data for competitor data for now (would need API endpoint)
+  const competitorData = mockCompetitorData;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="card p-6">
+          <div className="flex items-center justify-center">
+            <RefreshCw className="h-8 w-8 animate-spin text-primary-600" />
+            <span className="ml-2 text-slate-600">대시보드 데이터를 불러오는 중...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="card p-6">
+          <div className="text-center">
+            <p className="text-error-600 mb-4">데이터를 불러올 수 없습니다: {error}</p>
+            <button 
+              onClick={refreshData}
+              className="btn btn-primary"
+            >
+              다시 시도
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -371,7 +431,10 @@ export default function Dashboard() {
           <div className="flex items-center space-x-4">
             <TimeRangeSelector value={timeRange} onChange={setTimeRange} />
             
-            <button className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+            <button 
+              onClick={refreshData}
+              className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+            >
               <RefreshCw className="h-5 w-5" />
             </button>
           </div>
@@ -382,8 +445,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
           title="총 발견 키워드"
-          value={formatNumber(mockMetrics.totalKeywords)}
-          change={mockMetrics.keywordChange}
+          value={formatNumber(realMetrics.totalKeywords)}
+          change={realMetrics.keywordChange}
           icon={Search}
           color="blue"
           subtitle="지난 주 대비"
@@ -391,8 +454,8 @@ export default function Dashboard() {
         
         <MetricCard
           title="평균 순위"
-          value={`${mockMetrics.avgRanking}위`}
-          change={mockMetrics.rankingChange}
+          value={`${realMetrics.avgRanking.toFixed(1)}위`}
+          change={realMetrics.rankingChange}
           icon={TrendingUp}
           color="green"
           subtitle="순위 개선"
@@ -400,31 +463,31 @@ export default function Dashboard() {
         
         <MetricCard
           title="광고 기회"
-          value={mockMetrics.adOpportunities}
-          change={mockMetrics.adChange}
+          value={realMetrics.adOpportunities}
+          change={realMetrics.adChange}
           icon={DollarSign}
           color="yellow"
           subtitle="추천 키워드"
         />
         
         <MetricCard
-          title="경쟁 강도"
-          value={mockMetrics.competitionScore}
-          change={mockMetrics.competitionChange}
-          icon={Users}
+          title="낮은 경쟁 키워드"
+          value={realMetrics.competitionScore}
+          change={realMetrics.competitionChange}
+          icon={Target}
           color="purple"
-          subtitle="경쟁도 점수"
+          subtitle="기회 키워드"
         />
       </div>
 
       {/* 트렌드 분석 차트 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RankingTrends data={mockTrendData} />
-        <OpportunityChart opportunities={mockOpportunities} />
+        <RankingTrends data={trendData} />
+        <OpportunityChart opportunities={opportunities} />
       </div>
 
       {/* 경쟁자 분석 */}
-      <CompetitorAnalysis competitorData={mockCompetitorData} />
+      <CompetitorAnalysis competitorData={competitorData} />
     </div>
   );
 }

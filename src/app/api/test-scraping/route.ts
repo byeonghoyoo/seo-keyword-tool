@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     try {
       scrapedContent = await enhancedWebScraper.scrapeUrl(url);
     } catch (puppeteerError) {
-      console.log('Puppeteer failed, using fallback scraper:', puppeteerError.message);
+      console.log('Puppeteer failed, using fallback scraper:', puppeteerError instanceof Error ? puppeteerError.message : String(puppeteerError));
       scrapedContent = await fallbackWebScraper.scrapeUrl(url);
     }
     

@@ -1,4 +1,4 @@
--- SEO Keyword Discovery Tool Database Schema
+-- SEO Keyword Analysis Tool Database Schema - PRODUCTION VERSION
 -- Run this in your Supabase SQL editor
 
 -- Enable necessary extensions
@@ -108,7 +108,107 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create a function to clean up old jobs (optional)
+-- Additional Tables for Production Features
+
+-- Competitor Profiles Table
+CREATE TABLE IF NOT EXISTS competitor_profiles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  domain TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  website TEXT NOT NULL,
+  business_type TEXT,
+  google_place_id TEXT UNIQUE,
+  rating DECIMAL(2,1),
+  review_count INTEGER DEFAULT 0,
+  phone TEXT,
+  address TEXT,
+  location_lat DECIMAL(10,8),
+  location_lng DECIMAL(11,8),
+  categories TEXT[],
+  photos TEXT[],
+  added_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  last_analyzed TIMESTAMP WITH TIME ZONE,
+  is_active BOOLEAN DEFAULT true
+);
+
+-- Competitor Analysis Results
+CREATE TABLE IF NOT EXISTS competitor_analyses (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  job_id UUID REFERENCES analysis_jobs(id) ON DELETE CASCADE,
+  competitor_id UUID REFERENCES competitor_profiles(id) ON DELETE CASCADE,
+  common_keywords INTEGER DEFAULT 0,
+  unique_keywords INTEGER DEFAULT 0,
+  average_ranking DECIMAL(5,2),
+  opportunity_score DECIMAL(5,2),
+  threat_level TEXT CHECK (threat_level IN ('low', 'medium', 'high')),
+  analyzed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Generated Reports Table
+CREATE TABLE IF NOT EXISTS generated_reports (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  job_id UUID REFERENCES analysis_jobs(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  report_type TEXT NOT NULL CHECK (report_type IN ('seo_analysis', 'competitor_comparison', 'keyword_opportunities')),
+  format TEXT NOT NULL CHECK (format IN ('pdf', 'excel', 'html')) DEFAULT 'pdf',
+  status TEXT NOT NULL CHECK (status IN ('generating', 'completed', 'failed')) DEFAULT 'generating',
+  file_path TEXT,
+  download_url TEXT,
+  file_size INTEGER,
+  sections JSONB,
+  insights JSONB,
+  generated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Additional indexes
+CREATE INDEX IF NOT EXISTS idx_competitor_profiles_domain ON competitor_profiles(domain);
+CREATE INDEX IF NOT EXISTS idx_competitor_profiles_place_id ON competitor_profiles(google_place_id);
+CREATE INDEX IF NOT EXISTS idx_competitor_analyses_job_id ON competitor_analyses(job_id);
+CREATE INDEX IF NOT EXISTS idx_generated_reports_job_id ON generated_reports(job_id);
+
+-- RLS for new tables
+ALTER TABLE competitor_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE competitor_analyses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE generated_reports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow all operations on competitor_profiles" ON competitor_profiles FOR ALL USING (true);
+CREATE POLICY "Allow all operations on competitor_analyses" ON competitor_analyses FOR ALL USING (true);
+CREATE POLICY "Allow all operations on generated_reports" ON generated_reports FOR ALL USING (true);
+
+-- Dashboard Statistics View
+CREATE OR REPLACE VIEW dashboard_stats AS
+SELECT 
+  COUNT(DISTINCT aj.id) as total_analyses,
+  COUNT(DISTINCT aj.domain) as unique_domains,
+  SUM(aj.keywords_found) as total_keywords,
+  AVG(kr.position) as avg_ranking,
+  COUNT(CASE WHEN kr.position <= 10 THEN 1 END) as top_10_keywords,
+  COUNT(CASE WHEN kr.type = 'ad' THEN 1 END) as ad_opportunities,
+  COUNT(CASE WHEN kr.competition = 'low' THEN 1 END) as low_competition_keywords
+FROM analysis_jobs aj
+LEFT JOIN keyword_results kr ON aj.id = kr.job_id
+WHERE aj.status = 'completed';
+
+-- Analysis History View
+CREATE OR REPLACE VIEW analysis_history AS
+SELECT 
+  aj.id,
+  aj.target_url,
+  aj.domain,
+  aj.status,
+  aj.keywords_found,
+  aj.completed_at,
+  aj.created_at,
+  EXTRACT(EPOCH FROM (aj.completed_at - aj.created_at))/60 as duration_minutes,
+  COUNT(kr.id) as actual_keywords_count,
+  AVG(kr.position) as average_ranking
+FROM analysis_jobs aj
+LEFT JOIN keyword_results kr ON aj.id = kr.job_id
+WHERE aj.status = 'completed'
+GROUP BY aj.id, aj.target_url, aj.domain, aj.status, aj.keywords_found, aj.completed_at, aj.created_at
+ORDER BY aj.completed_at DESC;
+
+-- Function to clean up old jobs
 CREATE OR REPLACE FUNCTION cleanup_old_jobs(days_old INTEGER DEFAULT 30)
 RETURNS INTEGER AS $$
 DECLARE

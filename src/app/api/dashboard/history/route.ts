@@ -1,16 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { dashboardStatsService } from '@/lib/dashboard-stats';
+import { productionAnalysisService } from '@/lib/production-analysis-service';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50', 10);
 
-    const history = await dashboardStatsService.getAnalysisHistory(limit);
+    const history = await productionAnalysisService.getAnalysisHistory(limit);
 
     return NextResponse.json({
       success: true,
-      history,
+      history: history.map(item => ({
+        id: item.id,
+        target_url: item.target_url,
+        domain: item.domain,
+        status: item.status,
+        keywords_found: item.keywords_found,
+        completed_at: item.completed_at,
+        created_at: item.created_at,
+        duration_minutes: item.duration_minutes,
+        actual_keywords_count: item.actual_keywords_count,
+        average_ranking: item.average_ranking,
+      })),
       count: history.length,
     });
 

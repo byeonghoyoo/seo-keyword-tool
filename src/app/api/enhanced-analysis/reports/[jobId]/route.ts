@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { enhancedAnalysisService } from '@/lib/enhanced-analysis-service';
-import { reportGenerator, type ReportOptions } from '@/lib/report-generator';
+import { reportGenerator, type ReportOptions } from '@/lib/simple-report-generator';
+import type { KeywordResult } from '@/types';
 
 export async function POST(
   request: NextRequest,
@@ -10,12 +11,12 @@ export async function POST(
     const { jobId } = params;
     const body = await request.json();
     
-    const reportOptions: ReportOptions = {
+    const reportOptions = {
       includeCharts: body.includeCharts ?? true,
       includeCompetitorAnalysis: body.includeCompetitorAnalysis ?? true,
       includeKeywordDetails: body.includeKeywordDetails ?? true,
       language: body.language || 'ko',
-      format: body.format || 'both',
+      format: body.format || 'pdf',
     };
 
     if (!jobId) {
@@ -45,26 +46,59 @@ export async function POST(
       );
     }
 
-    // Generate comprehensive report
-    const reports = await reportGenerator.generateComprehensiveReport(
-      job,
-      keywordResults,
-      reportOptions
-    );
+    // Transform data for simple report generator
+    const reportData = {
+      jobId: job.id,
+      targetUrl: job.targetUrl,
+      domain: job.domain,
+      keywords: keywordResults.map(k => ({
+        id: k.id,
+        keyword: k.keyword,
+        position: k.currentRanking || 999,
+        page: 1,
+        type: k.searchIntent === 'transactional' ? 'ad' : 'organic',
+        url: job.targetUrl,
+        title: k.keyword,
+        searchVolume: k.estimatedSearchVolume,
+        competition: k.competitionLevel,
+        estimatedCPC: k.estimatedCPC,
+        discovered: k.discovered,
+      } as KeywordResult)),
+      analysis: {
+        totalKeywords: job.results.finalStats.totalKeywords,
+        avgRanking: keywordResults.reduce((sum, k) => sum + (k.currentRanking || 999), 0) / keywordResults.length || 0,
+        top10Keywords: keywordResults.filter(k => k.currentRanking && k.currentRanking <= 10).length,
+        adOpportunities: keywordResults.filter(k => k.searchIntent === 'transactional').length,
+        lowCompetitionKeywords: job.results.finalStats.opportunityKeywords,
+      },
+      generatedAt: new Date(),
+    };
+
+    // Default report options for simple generator
+    const simpleReportOptions = {
+      format: (reportOptions.format || 'pdf') as 'pdf' | 'excel' | 'html',
+      sections: {
+        summary: true,
+        keywords: true,
+        competitors: false,
+        recommendations: true,
+      },
+      title: `SEO 분석 보고서 - ${job.domain}`,
+    };
+
+    // Generate report
+    const report = await reportGenerator.generateReport(reportData, simpleReportOptions);
 
     return NextResponse.json({
       success: true,
-      reports: reports.map(report => ({
-        id: report.id,
-        type: report.type,
-        format: report.format,
-        filename: report.filename,
+      report: {
         downloadUrl: report.downloadUrl,
-        size: report.size,
-        generatedAt: report.generatedAt.toISOString(),
-        expiresAt: report.expiresAt.toISOString(),
-      })),
-      message: `${reports.length} report(s) generated successfully`,
+        fileName: report.fileName,
+        fileSize: report.fileSize,
+        format: simpleReportOptions.format,
+        generatedAt: reportData.generatedAt.toISOString(),
+      },
+      message: 'Report generated successfully',
     });
 
   } catch (error) {
@@ -115,48 +149,60 @@ export async function GET(
       );
     }
 
-    let reports = [];
+    // Transform data for simple report generator
+    const reportData = {
+      jobId: job.id,
+      targetUrl: job.targetUrl,
+      domain: job.domain,
+      keywords: keywordResults.map(k => ({
+        id: k.id,
+        keyword: k.keyword,
+        position: k.currentRanking || 999,
+        page: 1,
+        type: k.searchIntent === 'transactional' ? 'ad' : 'organic',
+        url: job.targetUrl,
+        title: k.keyword,
+        searchVolume: k.estimatedSearchVolume,
+        competition: k.competitionLevel,
+        estimatedCPC: k.estimatedCPC,
+        discovered: k.discovered,
+      } as KeywordResult)),
+      analysis: {
+        totalKeywords: job.results.finalStats.totalKeywords,
+        avgRanking: keywordResults.reduce((sum, k) => sum + (k.currentRanking || 999), 0) / keywordResults.length || 0,
+        top10Keywords: keywordResults.filter(k => k.currentRanking && k.currentRanking <= 10).length,
+        adOpportunities: keywordResults.filter(k => k.searchIntent === 'transactional').length,
+        lowCompetitionKeywords: job.results.finalStats.opportunityKeywords,
+      },
+      generatedAt: new Date(),
+    };
 
-    switch (reportType) {
-      case 'comprehensive':
-        reports = await reportGenerator.generateComprehensiveReport(job, keywordResults);
-        break;
-      
-      case 'competitor':
-        if (job.results.competitorAnalysis) {
-          reports = await reportGenerator.generateCompetitorReport(job.results.competitorAnalysis);
-        } else {
-          return NextResponse.json(
-            { error: 'Competitor analysis not available for this job' },
-            { status: 400 }
-          );
-        }
-        break;
-      
-      case 'keyword-priority':
-        reports = await reportGenerator.generateKeywordPriorityReport(keywordResults);
-        break;
-      
-      default:
-        return NextResponse.json(
-          { error: 'Invalid report type. Use: comprehensive, competitor, or keyword-priority' },
-          { status: 400 }
-        );
-    }
+    // Simple report options (only one type supported now)
+    const simpleReportOptions = {
+      format: 'pdf' as const,
+      sections: {
+        summary: true,
+        keywords: true,
+        competitors: reportType === 'competitor',
+        recommendations: true,
+      },
+      title: `SEO 분석 보고서 - ${job.domain}`,
+    };
+
+    // Generate report
+    const report = await reportGenerator.generateReport(reportData, simpleReportOptions);
+    const reports = [report]; // Wrap in array to match expected structure
 
     return NextResponse.json({
       success: true,
       reportType,
-      reports: reports.map(report => ({
-        id: report.id,
-        type: report.type,
-        format: report.format,
-        filename: report.filename,
+      report: {
         downloadUrl: report.downloadUrl,
-        size: report.size,
-        generatedAt: report.generatedAt.toISOString(),
-        expiresAt: report.expiresAt.toISOString(),
-      })),
+        fileName: report.fileName,
+        fileSize: report.fileSize,
+        format: simpleReportOptions.format,
+        generatedAt: reportData.generatedAt.toISOString(),
+      },
     });
 
   } catch (error) {

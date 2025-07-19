@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analysisService } from '@/lib/analysis-service';
+import { productionAnalysisService } from '@/lib/production-analysis-service';
 
 export async function GET(
   request: NextRequest,
@@ -15,7 +15,7 @@ export async function GET(
       );
     }
 
-    const job = await analysisService.getJobStatus(jobId);
+    const job = await productionAnalysisService.getJobStatus(jobId);
 
     if (!job) {
       return NextResponse.json(

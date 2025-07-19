@@ -1,14 +1,32 @@
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
-import type { EnhancedAnalysisJob, EnhancedKeywordResult } from './enhanced-analysis-service';
-import type { CompetitorAnalysis } from './google-places';
+import type { KeywordResult } from '@/types';
+import { supabaseAdmin } from './supabase';
+
+export interface ReportData {
+  jobId: string;
+  targetUrl: string;
+  domain: string;
+  keywords: KeywordResult[];
+  analysis: {
+    totalKeywords: number;
+    avgRanking: number;
+    top10Keywords: number;
+    adOpportunities: number;
+    lowCompetitionKeywords: number;
+  };
+  generatedAt: Date;
+}
 
 export interface ReportOptions {
-  includeCharts: boolean;
-  includeCompetitorAnalysis: boolean;
-  includeKeywordDetails: boolean;
-  language: 'ko' | 'en';
-  format: 'pdf' | 'excel' | 'both';
+  format: 'pdf' | 'excel' | 'html';
+  sections: {
+    summary: boolean;
+    keywords: boolean;
+    competitors: boolean;
+    recommendations: boolean;
+  };
+  title?: string;
 }
 
 export interface GeneratedReport {
@@ -23,16 +41,56 @@ export interface GeneratedReport {
 }
 
 export class ReportGenerator {
-  async generateComprehensiveReport(
-    job: EnhancedAnalysisJob,
-    keywords: EnhancedKeywordResult[],
-    options: ReportOptions = {
-      includeCharts: true,
-      includeCompetitorAnalysis: true,
-      includeKeywordDetails: true,
-      language: 'ko',
-      format: 'both',
+  async generateReport(
+    reportData: ReportData,
+    options: ReportOptions
+  ): Promise<{ downloadUrl: string; fileName: string; fileSize: number }> {
+    try {
+      let fileName: string;
+      let buffer: Buffer;
+      let mimeType: string;
+
+      switch (options.format) {
+        case 'pdf':
+          ({ buffer, fileName } = await this.generatePDFReport(reportData, options));
+          mimeType = 'application/pdf';
+          break;
+        case 'excel':
+          ({ buffer, fileName } = await this.generateExcelReport(reportData, options));
+          mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          break;
+        case 'html':
+          ({ buffer, fileName } = await this.generateHTMLReport(reportData, options));
+          mimeType = 'text/html';
+          break;
+        default:
+          throw new Error('Unsupported report format');
+      }
+
+      // Store report in database
+      const reportRecord = await this.storeReport(reportData, options, fileName, buffer.length);
+
+      // In a real implementation, you would upload to cloud storage (AWS S3, Google Cloud, etc.)
+      // For now, we'll create a data URL (not recommended for production)
+      const base64Data = buffer.toString('base64');
+      const downloadUrl = `data:${mimeType};base64,${base64Data}`;
+
+      return {
+        downloadUrl,
+        fileName,
+        fileSize: buffer.length,
+      };
+
+    } catch (error) {
+      console.error('Report generation error:', error);
+      throw new Error(`Failed to generate report: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  async generateComprehensiveReport(
+    job: any,
+    keywords: any[],
+    options: any = {}
   ): Promise<GeneratedReport[]> {
     const reports: GeneratedReport[] = [];
 

@@ -42,8 +42,8 @@ export function useAnalysis() {
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
 
-      // Start enhanced analysis
-      const response = await fetch('/api/enhanced-analysis/start', {
+      // Start production analysis
+      const response = await fetch('/api/analysis/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -79,78 +79,45 @@ export function useAnalysis() {
       eventSourceRef.current.close();
     }
 
-    // Create new EventSource for enhanced progress tracking
-    const eventSource = new EventSource(`/api/enhanced-analysis/progress/${jobId}`);
-    eventSourceRef.current = eventSource;
-
-    eventSource.onopen = () => {
-      console.log('Progress tracking connected');
-    };
-
-    eventSource.onmessage = (event) => {
+    // Use polling instead of EventSource for compatibility
+    const pollProgress = async () => {
       try {
-        const data = JSON.parse(event.data);
-        
-        switch (data.type) {
-          case 'connected':
-            console.log('Connected to progress stream');
-            break;
-            
-          case 'progress':
+        const response = await fetch(`/api/analysis/status/${jobId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setState(prev => ({
+            ...prev,
+            job: data.job,
+            isLoading: data.job.status === 'running' || data.job.status === 'pending',
+          }));
+          
+          if (data.job.status === 'completed') {
+            fetchResults(jobId);
+            return;
+          } else if (data.job.status === 'failed') {
             setState(prev => ({
               ...prev,
-              job: data.job,
-              isLoading: data.job.status === 'running' || data.job.status === 'pending',
-            }));
-            break;
-            
-          case 'finished':
-            setState(prev => ({
-              ...prev,
+              error: data.job.errorMessage || 'Analysis failed',
               isLoading: false,
             }));
-            
-            // Fetch final results
-            if (data.status === 'completed') {
-              fetchResults(jobId);
-            } else if (data.status === 'failed') {
-              setState(prev => ({
-                ...prev,
-                error: data.errorMessage || 'Analysis failed',
-              }));
-            }
-            
-            eventSource.close();
-            break;
-            
-          case 'error':
-            setState(prev => ({
-              ...prev,
-              isLoading: false,
-              error: data.error,
-            }));
-            eventSource.close();
-            break;
+            return;
+          }
         }
       } catch (error) {
-        console.error('Failed to parse progress data:', error);
+        console.error('Progress polling error:', error);
       }
+      
+      // Continue polling if still running
+      setTimeout(pollProgress, 2000); // Poll every 2 seconds
     };
+    
+    pollProgress();
 
-    eventSource.onerror = (error) => {
-      console.error('Progress tracking error:', error);
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: 'Connection to progress tracking failed',
-      }));
-      eventSource.close();
-    };
   }, []);
 
   const fetchResults = useCallback(async (jobId: string) => {
     try {
-      const response = await fetch(`/api/enhanced-analysis/results/${jobId}`);
+      const response = await fetch(`/api/analysis/results/${jobId}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch results');

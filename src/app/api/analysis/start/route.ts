@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analysisService } from '@/lib/analysis-service';
+import { productionAnalysisService } from '@/lib/production-analysis-service';
 import type { AnalysisOptions } from '@/types';
 
 export async function POST(request: NextRequest) {
@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
       searchEngine: options?.searchEngine || 'naver',
     };
 
-    // Start analysis
-    const jobId = await analysisService.startAnalysis(targetUrl, analysisOptions);
+    // Start production analysis
+    const jobId = await productionAnalysisService.startAnalysis(targetUrl, analysisOptions);
 
     return NextResponse.json({
       success: true,

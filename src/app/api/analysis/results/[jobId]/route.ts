@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analysisService } from '@/lib/analysis-service';
+import { productionAnalysisService } from '@/lib/production-analysis-service';
 
 export async function GET(
   request: NextRequest,
@@ -16,7 +16,7 @@ export async function GET(
     }
 
     // Get job status first
-    const job = await analysisService.getJobStatus(jobId);
+    const job = await productionAnalysisService.getJobStatus(jobId);
     if (!job) {
       return NextResponse.json(
         { error: 'Job not found' },
@@ -26,8 +26,8 @@ export async function GET(
 
     // Get results and logs
     const [results, logs] = await Promise.all([
-      analysisService.getJobResults(jobId),
-      analysisService.getJobLogs(jobId),
+      productionAnalysisService.getJobResults(jobId),
+      productionAnalysisService.getJobLogs(jobId),
     ]);
 
     return NextResponse.json({

@@ -37,7 +37,7 @@ export async function GET() {
         message: 'Naver API working correctly',
         testQuery,
         resultsCount: items.length,
-        sampleResults: items.slice(0, 2).map(item => ({
+        sampleResults: items.slice(0, 2).map((item: any) => ({
           title: item.title?.replace(/<[^>]*>/g, ''),
           link: item.link,
           description: item.description?.replace(/<[^>]*>/g, '').slice(0, 100) + '...'
