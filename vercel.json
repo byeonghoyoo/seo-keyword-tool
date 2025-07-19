@@ -6,12 +6,7 @@
       "NEXT_TELEMETRY_DISABLED": "1"
     }
   },
-  "functions": {
-    "src/app/**/*.{js,ts,jsx,tsx}": {
-      "runtime": "@vercel/node@latest"
-    }
-  },
-  "regions": ["icn1"],
+   "regions": ["icn1"],
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
