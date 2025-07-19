@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { getSearchTypeColor, getRankingColor, formatNumber, cn } from '@/lib/utils';
 import type { KeywordResult } from '@/types';
+import type { AnalysisJob } from '@/hooks/useAnalysis';
 
 interface SearchTypeBadgeProps {
   type: 'organic' | 'ad' | 'shopping' | 'local';
@@ -441,7 +442,12 @@ const mockResults: KeywordResult[] = [
   }
 ];
 
-export default function KeywordResultsTable() {
+interface KeywordResultsTableProps {
+  results: KeywordResult[];
+  job: AnalysisJob | null;
+}
+
+export default function KeywordResultsTable({ results = [], job }: KeywordResultsTableProps) {
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'position', direction: 'asc' });
   const [filterConfig, setFilterConfig] = useState({
     type: 'all',
@@ -452,7 +458,7 @@ export default function KeywordResultsTable() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredResults = useMemo(() => {
-    let filtered = mockResults;
+    let filtered = results;
 
     // 검색 필터
     if (searchQuery) {
@@ -524,6 +530,19 @@ export default function KeywordResultsTable() {
   const handleViewDetails = (result: KeywordResult) => {
     console.log('상세 보기:', result);
   };
+
+  // Show empty state if no results
+  if (results.length === 0) {
+    return (
+      <div className="card p-12 text-center">
+        <Search className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-slate-900 mb-2">분석 결과가 없습니다</h3>
+        <p className="text-slate-600 mb-6">
+          {job ? '분석이 진행 중이거나 키워드가 발견되지 않았습니다.' : '먼저 분석을 시작해주세요.'}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="card overflow-hidden animate-fade-in">
